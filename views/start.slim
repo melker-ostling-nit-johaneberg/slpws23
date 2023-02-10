@@ -1,3 +1,8 @@
 - turtels.each do |turtle|
     div 
-        h1 #{resilt['Name']}
+        h2 #{turtle["Name"]}
+        ul
+            li #{turtle["Size"]} dm
+            li #{turtle["Species"]}
+            li #{turtle["Weight"]} kg
+        p #{turtle["Special_notes"]}

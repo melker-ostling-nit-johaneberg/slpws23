@@ -8,12 +8,15 @@ enable :sesions
 
 get('/') do
     db = SQLite3::Database.new("db/db.db")
-    result = db.execute("SELECT * FROM Post")
-    slim(:"start", locals:{result:result})
+    db.results_as_hash = true
+    result = db.execute("SELECT * FROM Describing_features")
+    slim(:"start", locals:{turtels:result})
 end
 
 get('/new') do
-    slim(:start)
+    db = SQLite3::Database.new("db/db.db")
+    result = db.execute("SELECT * FROM Post")
+    slim(:start, locals:{turtels:result})
 end
 get('/register') do
     slim(:register)
@@ -24,7 +27,7 @@ post('/register') do
     password = params[:password]
     password_digest = BCrypt::Password.create(password)
     db = SQLite3::Database.new("db/db.db")
-    db.execute("INSERT INTO User ('Name', 'Password') VALUES (?, ?)", username, password_digest)
+    db.execute("INSERT INTO Users ('Name', 'Password') VALUES (?, ?)", username, password_digest)
     redirect('/')
 end
 
@@ -50,4 +53,37 @@ post('/login') do
         p "hejasklandlkan"
         "FEL LÖSEN!!!!"
     end
+end
+
+get('/new_turtle') do
+    slim(:new_turtle)
+end
+
+post('/new_turtle') do
+    turtle_name = params[:turtle_name]
+    turtle_size = params[:turtle_size].to_i
+    turtle_species = params[:turtle_species]
+    turtle_weight = params[:turtle_weight].to_i
+    turtle_notes = params[:turtle_notes]
+    db = SQLite3::Database.new("db/db.db")
+    db.execute("INSERT INTO Describing_features (Name, Size, Species, Weight, Special_notes) VALUES (?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes).first
+    redirect('/')
+end
+
+get('/posts') do
+    db = SQLite3::Database.new("db/db.db")
+    db.results_as_hash = true
+    result = db.execute("SELECT * FROM Post")
+    slim(:post, locals:{content:result})
+end
+
+get('/new_post') do
+    slim(:new_post)
+end
+
+post('/new_post') do
+    content = params[:Content]
+    db = SQLite3::Database.new("db/db.db")
+    db.execute("INSERT INTO Post (Content) VALUES (?)", content)
+    redirect('/posts')
 end
