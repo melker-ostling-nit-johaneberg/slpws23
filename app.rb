@@ -40,7 +40,7 @@ post('/login') do
     password = params[:password]
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
-    result = db.execute("SELECT User_Id, Password from User WHERE Name=?", username).first
+    result = db.execute("SELECT User_Id, Password from Users WHERE Name=?", username).first
     if result == nil
         return "FEL ANVÄNDARNAMN"
     end
@@ -74,6 +74,8 @@ get('/posts') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
     result = db.execute("SELECT * FROM Post")
+    print session[:user_id]
+    @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
     slim(:post, locals:{content:result})
 end
 
@@ -84,6 +86,6 @@ end
 post('/new_post') do
     content = params[:Content]
     db = SQLite3::Database.new("db/db.db")
-    db.execute("INSERT INTO Post (Content) VALUES (?)", content)
+    db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, 1)
     redirect('/posts')
 end
