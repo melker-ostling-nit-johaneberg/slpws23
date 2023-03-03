@@ -6,6 +6,9 @@ require 'sqlite3'
 require_relative './model.rb'
 enable :sesions
 
+# current user
+# @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
+
 get('/') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
@@ -28,6 +31,8 @@ post('/register') do
     password_digest = BCrypt::Password.create(password)
     db = SQLite3::Database.new("db/db.db")
     db.execute("INSERT INTO Users ('Name', 'Password') VALUES (?, ?)", username, password_digest)
+    user_id = db.execute("Select User_Id FROM Users WHERE Name=?")
+    session[:user_id] = user_id
     redirect('/')
 end
 
@@ -44,7 +49,7 @@ post('/login') do
     if result == nil
         return "FEL ANVÄNDARNAMN"
     end
-    user_id = result["UserId"].to_i
+    user_id = result["User_Id"].to_i
     password_digest = result["Password"]
     if BCrypt::Password.new(password_digest) == password
         session[:user_id] = user_id
@@ -73,9 +78,8 @@ end
 get('/posts') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
-    result = db.execute("SELECT * FROM Post")
-    print session[:user_id]
-    @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
+    result = db.execute("SELECT * FROM Post INNER JOIN Users ON Post.User_Id = Users.User_Id")
+    print result
     slim(:post, locals:{content:result})
 end
 
@@ -86,6 +90,10 @@ end
 post('/new_post') do
     content = params[:Content]
     db = SQLite3::Database.new("db/db.db")
-    db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, 1)
+    if session[:user_id] == nil
+        return "Logga in"
+    else   
+        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id].to_i)
+    end
     redirect('/posts')
 end
