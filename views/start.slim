@@ -1,9 +1,11 @@
 - turtels.each do |turtle|
     div 
-        h2 #{turtle["Name"]}
+        h2 #{turtle["Turt_Name"]}
         ul
-            li #{turtle["Size"]} dm
-            li #{turtle["Species"]}
-            li #{turtle["Weight"]} kg
-        p #{turtle["Special_notes"]}
-        p #{turtle[""]}
+            li Size: #{turtle["Size"]} dm
+            li Species: #{turtle["Species"]}
+            li Weight: #{turtle["Weight"]} kg
+        p Notes: #{turtle["Special_notes"]}
+        p User: #{turtle["Name"]}
+        p #{@Tag["Tag"]}
+    - puts '@Tag["Tag"]'
