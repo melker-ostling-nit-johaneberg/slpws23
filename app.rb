@@ -14,7 +14,6 @@ get('/') do
     db.results_as_hash = true
     result = db.execute("SELECT * FROM Describing_features INNER JOIN Users ON Describing_features.User_Id=Users.User_Id")
     @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id")
-    print @Tag
     slim(:"start", locals:{turtels:result})
 end
 
@@ -58,7 +57,10 @@ post('/login') do
 end
 
 get('/new_turtle') do
-    slim(:new_turtle)
+    db = SQLite3::Database.new("db/db.db")
+    db.results_as_hash = true
+    result = db.execute("Select * FROM Describing_tags")
+    slim(:new_turtle, locals:{tags:result})
 end
 
 post('/new_turtle') do
@@ -67,6 +69,7 @@ post('/new_turtle') do
     turtle_species = params[:turtle_species]
     turtle_weight = params[:turtle_weight].to_i
     turtle_notes = params[:turtle_notes]
+    turtle_tag = params[:turtle_tag]
     db = SQLite3::Database.new("db/db.db")
     db.execute("INSERT INTO Describing_features (Name, Size, Species, Weight, Special_notes, User_Id) VALUES (?, ?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, session[:user_id].to_i).first
     redirect('/')

@@ -7,5 +7,7 @@
             li Weight: #{turtle["Weight"]} kg
         p Notes: #{turtle["Special_notes"]}
         p User: #{turtle["Name"]}
-        p #{@Tag["Tag"]}
-    - puts '@Tag["Tag"]'
+        h4 Tags:
+        -  @Tag.select {|tags| tags["Decription_Id"] == turtle["Description_Id"]}.each do |tag|
+            div 
+                p #{tag["Tag"]}
