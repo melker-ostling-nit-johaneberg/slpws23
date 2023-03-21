@@ -14,6 +14,9 @@ get('/') do
     db.results_as_hash = true
     result = db.execute("SELECT * FROM Describing_features INNER JOIN Users ON Describing_features.User_Id=Users.User_Id")
     @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id")
+    p session[:user_id]
+    p "hej"
+    @Current_User = session[:user_id]
     slim(:"start", locals:{turtels:result})
 end
 
@@ -27,7 +30,7 @@ post('/register') do
     password_digest = BCrypt::Password.create(password)
     db = SQLite3::Database.new("db/db.db")
     db.execute("INSERT INTO Users ('Name', 'Password') VALUES (?, ?)", username, password_digest)
-    user_id = db.execute("Select User_Id FROM Users WHERE Name=?")
+    user_id = db.execute("Select User_Id FROM Users WHERE Name=?", username)
     session[:user_id] = user_id
     redirect('/')
 end
@@ -92,7 +95,7 @@ post('/new_post') do
     if session[:user_id] == nil
         return "Logga in"
     else   
-        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id].to_i)
+        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id].to_i)  #om ingen är inloggade kommer det skrivas på user_id 0
     end
     redirect('/posts')
 end

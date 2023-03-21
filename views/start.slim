@@ -11,3 +11,5 @@
         -  @Tag.select {|tags| tags["Decription_Id"] == turtle["Description_Id"]}.each do |tag|
             div 
                 p #{tag["Tag"]}
+        - if @Current_User == turtle["User_Id"]
+            p Hej på dig 
