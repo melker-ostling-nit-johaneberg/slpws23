@@ -1,0 +1,12 @@
+h2 Edit turtle
+
+form action="/new_turtle" method="post"
+    input type="text" name="turtle_name" placeholder="Name"/
+    input type="number" name="turtle_size" placeholder="Size (dm)"/
+    input type="text" name="turtle_species" placeholder="Species"/
+    input type="number" name="turtle_weight" placeholder="Weight (kg)"/
+    input type="text" name="turtle_notes" placeholder="Special notes"/
+    select# name="turtle_tag"
+        - tags.each do |tag|
+            option value='#{tag["Tag_Id"]}' #{tag["Tag"]}
+    input type="submit" value="Submit"/

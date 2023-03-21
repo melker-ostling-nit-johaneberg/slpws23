@@ -12,4 +12,5 @@
             div 
                 p #{tag["Tag"]}
         - if @Current_User == turtle["User_Id"]
-            p Hej på dig 
+            a href="turtle/:id/edit" Edit 
+            a href="start/delete" Delete
