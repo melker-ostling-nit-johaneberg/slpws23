@@ -12,5 +12,7 @@
             div 
                 p #{tag["Tag"]}
         - if @Current_User == turtle["User_Id"]
-            a href="turtle/:id/edit" Edit 
-            a href="start/delete" Delete
+            form action='/turtle/#{turtle["Description_Id"]}/remove' method="post" 
+                input type="submit"  value="Delete"/
+            form action="/turtle/#{turtle["Description_Id"]}/edit" method="get" 
+                input type="submit" value="Edit"/

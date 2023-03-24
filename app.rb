@@ -37,8 +37,22 @@ post('/new_turtle') do
     redirect('/')
 end
 
-get()
+get('/turtle/:description_id/edit') do
+    id = params[:description_id].to_i
+    db = SQLite3::Database.new("db/db.db")
+    db.results_as_hash = true
+    result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id)
+    @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id WHERE Decription_Id=?", id)
+    slim(:"Turtle/edit", locals:{user_content:result})
+end
 
+post('/turtle/:description_id/remove') do
+    id = params[:id].to_i
+    db = SQLite3::Database.new("db/db.db")
+    db.execute("DELETE FROM Describing_features WHERE Description_Id = ?", id)
+    db.execute("DELETE FROM Rel_Description WHERE Description_Id = ?", id)
+    redirect("/")
+end
 get('/register') do
     slim(:register)
 end
