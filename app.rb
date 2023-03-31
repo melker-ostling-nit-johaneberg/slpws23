@@ -33,7 +33,9 @@ post('/new_turtle') do
     turtle_notes = params[:turtle_notes]
     turtle_tag = params[:turtle_tag]
     db = SQLite3::Database.new("db/db.db")
-    db.execute("INSERT INTO Describing_features (Name, Size, Species, Weight, Special_notes, User_Id) VALUES (?, ?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, session[:user_id].to_i).first
+    db.execute("INSERT INTO Describing_features (Turt_Name, Size, Species, Weight, Special_notes, User_Id) VALUES (?, ?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, session[:user_id].to_i).first
+    turtle_id = db.execute("SELECT Description_Id from Describing_features").last
+    db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag, turtle_id)
     redirect('/')
 end
 
@@ -42,12 +44,25 @@ get('/turtle/:description_id/edit') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
     result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id)
-    @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id WHERE Decription_Id=?", id)
-    slim(:"Turtle/edit", locals:{user_content:result})
+    Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id WHERE Description_Id=?", id)
+    slim(:"Turtle/edit", locals:{user_content:result, tags:Tag})
+end
+
+post('/turtle/:description_id/update') do
+    id = params[:description_id].to_i
+    turtle_name = params[:turtle_name]
+    turtle_size = params[:turtle_size].to_i
+    turtle_species = params[:turtle_species]
+    turtle_weight = params[:turtle_weight].to_i
+    turtle_notes = params[:turtle_notes]
+    turtle_tag = params[:turtle_tag]
+    db = SQLite3::Database.new("db/db.db")
+    db.execute("UPDATE Describing_features SET Turt_Name = ?, Size = ?, Species = ?, Weight = ?, Special_notes = ? WHERE Description_Id = ?", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, id)
+    redirect('/')
 end
 
 post('/turtle/:description_id/remove') do
-    id = params[:id].to_i
+    id = params[:description_id].to_i
     db = SQLite3::Database.new("db/db.db")
     db.execute("DELETE FROM Describing_features WHERE Description_Id = ?", id)
     db.execute("DELETE FROM Rel_Description WHERE Description_Id = ?", id)
@@ -87,7 +102,6 @@ post('/login') do
         session[:user_id] = user_id
         redirect('/')
     else
-        p "hejasklandlkan"
         "FEL LÖSEN!!!!"
     end
 end
