@@ -6,7 +6,9 @@ form action="/turtle/#{user_content[0]["Description_Id"]}/update" method="post"
     input type="text" name="turtle_species" value='#{user_content[0]["Species"]}'/
     input type="number" name="turtle_weight" value='#{user_content[0]["Weight"]}'/
     input type="text" name="turtle_notes" value='#{user_content[0]["Special_notes"]}'/
-    select name="turtle_tag"
-        - tags.each do |tag|
-            option value='#{tag["Tag_Id"]}' #{tag["Tag"]}
+    - tags.each do |tag|
+        - if tag_in_use.include?(tag["Tag_Id"])
+            input type="checkbox" name='turtle_tags[#{tag["Tag"]}]' checked="" value='#{tag["Tag_Id"]}' #{tag["Tag"]} /
+        - else 
+            input type="checkbox" name='turtle_tags[#{tag["Tag"]}]' value='#{tag["Tag_Id"]}' #{tag["Tag"]} /    
     input type="submit" value="Submit"/

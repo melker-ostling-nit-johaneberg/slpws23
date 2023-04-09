@@ -3,11 +3,22 @@ require 'slim'
 require 'sinatra/reloader'
 require 'bcrypt'
 require 'sqlite3'
+require 'sinatra/flash'
 require_relative './model.rb'
 enable :sessions
 
 # current user
 # @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
+before do
+    db = SQLite3::Database.new("db/db.db")
+    db.results_as_hash = true
+    @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
+    if session[:user_id] == nil && ((request.path_info == '/new_turtle') || (request.path_info == '/new_post'))
+        flash[:error] = "Måste vara inloggad för att skapa ett inlägg"
+        redirect('/')
+    end
+end
+
 
 get('/') do
     db = SQLite3::Database.new("db/db.db")
@@ -31,11 +42,13 @@ post('/new_turtle') do
     turtle_species = params[:turtle_species]
     turtle_weight = params[:turtle_weight].to_i
     turtle_notes = params[:turtle_notes]
-    turtle_tag = params[:turtle_tag]
+    turtle_tags = params[:turtle_tags].to_a
     db = SQLite3::Database.new("db/db.db")
     db.execute("INSERT INTO Describing_features (Turt_Name, Size, Species, Weight, Special_notes, User_Id) VALUES (?, ?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, session[:user_id].to_i).first
     turtle_id = db.execute("SELECT Description_Id from Describing_features").last
-    db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag, turtle_id)
+    turtle_tags.each do |turtle_tag|
+        db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag.last, turtle_id)
+    end
     redirect('/')
 end
 
@@ -44,8 +57,9 @@ get('/turtle/:description_id/edit') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
     result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id)
-    Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id WHERE Description_Id=?", id)
-    slim(:"Turtle/edit", locals:{user_content:result, tags:Tag})
+    tag = db.execute("Select * FROM Describing_tags")
+    tag_in_use = db.execute("SELECT Tag_Id FROM Rel_Description WHERE Description_Id=?", id).to_a.flat_map(&:values)
+    slim(:"Turtle/edit", locals:{user_content:result, tags:tag, tag_in_use:tag_in_use})
 end
 
 post('/turtle/:description_id/update') do
@@ -55,9 +69,13 @@ post('/turtle/:description_id/update') do
     turtle_species = params[:turtle_species]
     turtle_weight = params[:turtle_weight].to_i
     turtle_notes = params[:turtle_notes]
-    turtle_tag = params[:turtle_tag]
+    turtle_tags = params[:turtle_tags].to_a
     db = SQLite3::Database.new("db/db.db")
+    db.execute("DELETE FROM Rel_Description WHERE Description_Id = ?", id)
     db.execute("UPDATE Describing_features SET Turt_Name = ?, Size = ?, Species = ?, Weight = ?, Special_notes = ? WHERE Description_Id = ?", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, id)
+    turtle_tags.each do |turtle_tag|
+        db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag.last, id)
+    end
     redirect('/')
 end
 

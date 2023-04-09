@@ -13,7 +13,12 @@ html lang="en"
             a href="/new_turtle" New Turtle 
             a href="/posts" Posts 
             a href="/new_post" Creat Post 
-            / h2 #{@user}
-            h1 Hejsan 
+            - if @user.empty?
+                h1 Du är inte inloggad 
+            - else 
+                h1 Hejsan, #{@user[0]["Name"]}
+
+            - if flash[:error] != nil
+                h3 #{flash{:error}}
 
         ==yield

@@ -2,12 +2,12 @@
     div 
         h2 #{turtle["Turt_Name"]}
         ul
-            li Size: #{turtle["Size"]} dm
-            li Species: #{turtle["Species"]}
-            li Weight: #{turtle["Weight"]} kg
-        p Notes: #{turtle["Special_notes"]}
-        p User: #{turtle["Name"]}
-        h4 Tags:
+            li Storlek: #{turtle["Size"]} dm
+            li Art: #{turtle["Species"]}
+            li Vikt: #{turtle["Weight"]} kg
+        p Anteckningar: #{turtle["Special_notes"]}
+        p Annvändare: #{turtle["Name"]}
+        h4 Tagar:
         -  @Tag.select {|tags| tags["Description_Id"] == turtle["Description_Id"]}.each do |tag|
             div 
                 p #{tag["Tag"]}
