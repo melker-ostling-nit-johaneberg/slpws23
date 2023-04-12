@@ -6,7 +6,7 @@
             li Art: #{turtle["Species"]}
             li Vikt: #{turtle["Weight"]} kg
         p Anteckningar: #{turtle["Special_notes"]}
-        p Annvändare: #{turtle["Name"]}
+        p Användare: #{turtle["Name"]}
         h4 Tagar:
         -  @Tag.select {|tags| tags["Description_Id"] == turtle["Description_Id"]}.each do |tag|
             div 

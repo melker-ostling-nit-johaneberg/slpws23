@@ -13,30 +13,41 @@ before do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
     @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
-    if session[:user_id] == nil && ((request.path_info == '/new_turtle') || (request.path_info == '/new_post'))
+    if session[:user_id] == nil && ((request.path_info == '/turtle/new') || (request.path_info == '/post/new'))
         flash[:error] = "Måste vara inloggad för att skapa ett inlägg"
-        redirect('/')
+        redirect('/turtle/')
     end
 end
 
+before('/turtle/:description_id/edit') do
+    id = params[:description_id].to_i
+    if id != session[:user_id]
+        flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
+        redirect('/turtle/') 
+    end
+end
 
 get('/') do
+    redirect('/turtle/')
+end
+
+get('/turtle/') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
     result = db.execute("SELECT * FROM Describing_features INNER JOIN Users ON Describing_features.User_Id=Users.User_Id")
     @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id")
     @Current_User = session[:user_id]
-    slim(:"start", locals:{turtels:result})
+    slim(:"turtle/index", locals:{turtels:result})
 end
 
-get('/new_turtle') do
+get('/turtle/new') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
     result = db.execute("Select * FROM Describing_tags")
-    slim(:new_turtle, locals:{tags:result})
+    slim(:"turtle/new", locals:{tags:result})
 end
 
-post('/new_turtle') do
+post('/turtle/new') do
     turtle_name = params[:turtle_name]
     turtle_size = params[:turtle_size].to_i
     turtle_species = params[:turtle_species]
@@ -44,12 +55,12 @@ post('/new_turtle') do
     turtle_notes = params[:turtle_notes]
     turtle_tags = params[:turtle_tags].to_a
     db = SQLite3::Database.new("db/db.db")
-    db.execute("INSERT INTO Describing_features (Turt_Name, Size, Species, Weight, Special_notes, User_Id) VALUES (?, ?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, session[:user_id].to_i).first
+    db.execute("INSERT INTO Describing_features (Turt_Name, Size, Species, Weight, Special_notes, User_Id) VALUES (?, ?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, session[:user_id]).first
     turtle_id = db.execute("SELECT Description_Id from Describing_features").last
     turtle_tags.each do |turtle_tag|
         db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag.last, turtle_id)
     end
-    redirect('/')
+    redirect('/turtle/')
 end
 
 get('/turtle/:description_id/edit') do
@@ -76,7 +87,7 @@ post('/turtle/:description_id/update') do
     turtle_tags.each do |turtle_tag|
         db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag.last, id)
     end
-    redirect('/')
+    redirect('/turtle/')
 end
 
 post('/turtle/:description_id/remove') do
@@ -96,9 +107,9 @@ post('/register') do
     password_digest = BCrypt::Password.create(password)
     db = SQLite3::Database.new("db/db.db")
     db.execute("INSERT INTO Users ('Name', 'Password') VALUES (?, ?)", username, password_digest)
-    user_id = db.execute("Select User_Id FROM Users WHERE Name=?", username)
+    user_id = db.execute("Select User_Id FROM Users WHERE Name=?", username).last.last
     session[:user_id] = user_id
-    redirect('/')
+    redirect('/turtle/')
 end
 
 get('/login')do
@@ -118,24 +129,24 @@ post('/login') do
     password_digest = result["Password"]
     if BCrypt::Password.new(password_digest) == password
         session[:user_id] = user_id
-        redirect('/')
+        redirect('/turtle/')
     else
         "FEL LÖSEN!!!!"
     end
 end
 
-get('/posts') do
+get('/posts/') do
     db = SQLite3::Database.new("db/db.db")
     db.results_as_hash = true
     result = db.execute("SELECT * FROM Post INNER JOIN Users ON Post.User_Id = Users.User_Id")
-    slim(:post, locals:{content:result})
+    slim(:"post/index", locals:{content:result})
 end
 
-get('/new_post') do
-    slim(:new_post)
+get('/post/new') do
+    slim(:"post/new")
 end
 
-post('/new_post') do
+post('/post/new') do
     content = params[:Content]
     db = SQLite3::Database.new("db/db.db")
     if session[:user_id] == nil
@@ -143,5 +154,5 @@ post('/new_post') do
     else   
         db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id].to_i)  #om ingen är inloggade kommer det skrivas på user_id 0
     end
-    redirect('/posts')
+    redirect('/posts/')
 end
