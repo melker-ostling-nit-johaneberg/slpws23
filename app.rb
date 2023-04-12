@@ -9,10 +9,10 @@ enable :sessions
 
 # current user
 # @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
+# @user = Select_current_user(session[:user_id])
+
 before do
-    db = SQLite3::Database.new("db/db.db")
-    db.results_as_hash = true
-    @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
+    @user = Select_current_user(session[:user_id])
     if session[:user_id] == nil && ((request.path_info == '/turtle/new') || (request.path_info == '/post/new'))
         flash[:error] = "Måste vara inloggad för att skapa ett inlägg"
         redirect('/turtle/')
@@ -20,8 +20,9 @@ before do
 end
 
 before('/turtle/:description_id/edit') do
-    id = params[:description_id].to_i
-    if id != session[:user_id]
+    db = Connect_to_db("db/db.db")
+    id = db.execute("SELECT User_Id FROM Describing_features WHERE Description_Id = ?", params[:description_id].to_i).last
+    if id["User_Id"] != session[:user_id]
         flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
         redirect('/turtle/') 
     end
@@ -32,8 +33,7 @@ get('/') do
 end
 
 get('/turtle/') do
-    db = SQLite3::Database.new("db/db.db")
-    db.results_as_hash = true
+    db = Connect_to_db("db/db.db")
     result = db.execute("SELECT * FROM Describing_features INNER JOIN Users ON Describing_features.User_Id=Users.User_Id")
     @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id")
     @Current_User = session[:user_id]
@@ -41,34 +41,22 @@ get('/turtle/') do
 end
 
 get('/turtle/new') do
-    db = SQLite3::Database.new("db/db.db")
-    db.results_as_hash = true
-    result = db.execute("Select * FROM Describing_tags")
-    slim(:"turtle/new", locals:{tags:result})
+    tags = Select_all_Tags()
+    slim(:"turtle/new", locals:{tags:tags})
 end
 
 post('/turtle/new') do
-    turtle_name = params[:turtle_name]
-    turtle_size = params[:turtle_size].to_i
-    turtle_species = params[:turtle_species]
-    turtle_weight = params[:turtle_weight].to_i
-    turtle_notes = params[:turtle_notes]
-    turtle_tags = params[:turtle_tags].to_a
-    db = SQLite3::Database.new("db/db.db")
-    db.execute("INSERT INTO Describing_features (Turt_Name, Size, Species, Weight, Special_notes, User_Id) VALUES (?, ?, ?, ?, ?, ?)", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, session[:user_id]).first
-    turtle_id = db.execute("SELECT Description_Id from Describing_features").last
-    turtle_tags.each do |turtle_tag|
-        db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag.last, turtle_id)
-    end
+    Insert_new_Turtle(params[:turtle_name], params[:turtle_size].to_i, params[:turtle_species], params[:turtle_weight].to_i, params[:turtle_notes], session[:user_id])
+    turtle_id = Select_turtle_id()
+    Insert_turtle_tags(params[:turtle_tags].to_a, turtle_id["Description_Id"])
     redirect('/turtle/')
 end
 
 get('/turtle/:description_id/edit') do
     id = params[:description_id].to_i
-    db = SQLite3::Database.new("db/db.db")
-    db.results_as_hash = true
+    db = Connect_to_db("db/db.db")
     result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id)
-    tag = db.execute("Select * FROM Describing_tags")
+    tag = Select_all_Tags()
     tag_in_use = db.execute("SELECT Tag_Id FROM Rel_Description WHERE Description_Id=?", id).to_a.flat_map(&:values)
     slim(:"Turtle/edit", locals:{user_content:result, tags:tag, tag_in_use:tag_in_use})
 end
@@ -81,20 +69,17 @@ post('/turtle/:description_id/update') do
     turtle_weight = params[:turtle_weight].to_i
     turtle_notes = params[:turtle_notes]
     turtle_tags = params[:turtle_tags].to_a
-    db = SQLite3::Database.new("db/db.db")
-    db.execute("DELETE FROM Rel_Description WHERE Description_Id = ?", id)
+    db = Connect_to_db("db/db.db")
+    Delete_x("Rel_Description", id)
     db.execute("UPDATE Describing_features SET Turt_Name = ?, Size = ?, Species = ?, Weight = ?, Special_notes = ? WHERE Description_Id = ?", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, id)
-    turtle_tags.each do |turtle_tag|
-        db.execute("INSERT INTO Rel_Description (Tag_Id, Description_Id) VALUES (?,?)", turtle_tag.last, id)
-    end
+    Insert_turtle_tags(turtle_tags, id)
     redirect('/turtle/')
 end
 
 post('/turtle/:description_id/remove') do
     id = params[:description_id].to_i
-    db = SQLite3::Database.new("db/db.db")
-    db.execute("DELETE FROM Describing_features WHERE Description_Id = ?", id)
-    db.execute("DELETE FROM Rel_Description WHERE Description_Id = ?", id)
+    Delete_x("Describing_features", id)
+    Delete_x("Rel_Description", id)
     redirect("/")
 end
 get('/register') do
@@ -119,8 +104,7 @@ end
 post('/login') do
     username = params[:username]
     password = params[:password]
-    db = SQLite3::Database.new("db/db.db")
-    db.results_as_hash = true
+    db = Connect_to_db("db/db.db")
     result = db.execute("SELECT User_Id, Password from Users WHERE Name=?", username).first
     if result == nil
         return "FEL ANVÄNDARNAMN"
@@ -136,8 +120,7 @@ post('/login') do
 end
 
 get('/posts/') do
-    db = SQLite3::Database.new("db/db.db")
-    db.results_as_hash = true
+    db = Connect_to_db("db/db.db")
     result = db.execute("SELECT * FROM Post INNER JOIN Users ON Post.User_Id = Users.User_Id")
     slim(:"post/index", locals:{content:result})
 end
@@ -152,7 +135,7 @@ post('/post/new') do
     if session[:user_id] == nil
         return "Logga in"
     else   
-        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id].to_i)  #om ingen är inloggade kommer det skrivas på user_id 0
+        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id])  
     end
     redirect('/posts/')
 end
