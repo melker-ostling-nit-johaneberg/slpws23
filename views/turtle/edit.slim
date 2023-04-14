@@ -1,11 +1,11 @@
 h2 Edit turtle
 
-form action="/turtle/#{user_content[0]["Description_Id"]}/update" method="post"
-    input type="text" name="turtle_name" value='#{user_content[0]["Turt_Name"]}'/
-    input type="number" name="turtle_size" value='#{user_content[0]["Size"]}'/
-    input type="text" name="turtle_species" value='#{user_content[0]["Species"]}'/
-    input type="number" name="turtle_weight" value='#{user_content[0]["Weight"]}'/
-    input type="text" name="turtle_notes" value='#{user_content[0]["Special_notes"]}'/
+form action="/turtle/#{user_content["Description_Id"]}/update" method="post"
+    input type="text" name="turtle_name" value='#{user_content["Turt_Name"]}'/
+    input type="number" name="turtle_size" value='#{user_content["Size"]}'/
+    input type="text" name="turtle_species" value='#{user_content["Species"]}'/
+    input type="number" name="turtle_weight" value='#{user_content["Weight"]}'/
+    input type="text" name="turtle_notes" value='#{user_content["Special_notes"]}'/
     - tags.each do |tag|
         - if tag_in_use.include?(tag["Tag_Id"])
             input type="checkbox" name='turtle_tags[#{tag["Tag"]}]' checked="" value='#{tag["Tag_Id"]}' #{tag["Tag"]} /

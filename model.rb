@@ -32,6 +32,10 @@ helpers do
         db = Connect_to_db("db/db.db")
         db.execute("DELETE FROM #{tabel} WHERE Description_Id = ?", description_id)
     end
+
+    def Save_user(user_id, admin)
+        return admin << user_id
+    end
     def Select_all_Tags
         db = Connect_to_db("db/db.db")
         tags = db.execute("Select * FROM Describing_tags")

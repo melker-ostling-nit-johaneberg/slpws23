@@ -12,8 +12,12 @@ enable :sessions
 # @user = Select_current_user(session[:user_id])
 
 before do
-    @user = Select_current_user(session[:user_id])
-    if session[:user_id] == nil && ((request.path_info == '/turtle/new') || (request.path_info == '/post/new'))
+    if session[:user_id] == nil
+        session[:user_id] = []
+    end
+    @admin = [0, 1]
+    @user = Select_current_user(session[:user_id].last)
+    if session[:user_id].empty? && ((request.path_info == '/turtle/new') || (request.path_info == '/post/new'))
         flash[:error] = "Måste vara inloggad för att skapa ett inlägg"
         redirect('/turtle/')
     end
@@ -22,7 +26,9 @@ end
 before('/turtle/:description_id/edit') do
     db = Connect_to_db("db/db.db")
     id = db.execute("SELECT User_Id FROM Describing_features WHERE Description_Id = ?", params[:description_id].to_i).last
-    if id["User_Id"] != session[:user_id]
+    if session[:user_id].include?(id["User_Id"])
+        redirect('/turtle/#{id}/edit')
+    else
         flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
         redirect('/turtle/') 
     end
@@ -36,7 +42,6 @@ get('/turtle/') do
     db = Connect_to_db("db/db.db")
     result = db.execute("SELECT * FROM Describing_features INNER JOIN Users ON Describing_features.User_Id=Users.User_Id")
     @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id")
-    @Current_User = session[:user_id]
     slim(:"turtle/index", locals:{turtels:result})
 end
 
@@ -46,7 +51,7 @@ get('/turtle/new') do
 end
 
 post('/turtle/new') do
-    Insert_new_Turtle(params[:turtle_name], params[:turtle_size].to_i, params[:turtle_species], params[:turtle_weight].to_i, params[:turtle_notes], session[:user_id])
+    Insert_new_Turtle(params[:turtle_name], params[:turtle_size].to_i, params[:turtle_species], params[:turtle_weight].to_i, params[:turtle_notes], session[:user_id].last)
     turtle_id = Select_turtle_id()
     Insert_turtle_tags(params[:turtle_tags].to_a, turtle_id["Description_Id"])
     redirect('/turtle/')
@@ -55,7 +60,7 @@ end
 get('/turtle/:description_id/edit') do
     id = params[:description_id].to_i
     db = Connect_to_db("db/db.db")
-    result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id)
+    result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id).last
     tag = Select_all_Tags()
     tag_in_use = db.execute("SELECT Tag_Id FROM Rel_Description WHERE Description_Id=?", id).to_a.flat_map(&:values)
     slim(:"Turtle/edit", locals:{user_content:result, tags:tag, tag_in_use:tag_in_use})
@@ -80,7 +85,7 @@ post('/turtle/:description_id/remove') do
     id = params[:description_id].to_i
     Delete_x("Describing_features", id)
     Delete_x("Rel_Description", id)
-    redirect("/")
+    redirect("/turtle/")
 end
 get('/register') do
     slim(:register)
@@ -93,7 +98,7 @@ post('/register') do
     db = SQLite3::Database.new("db/db.db")
     db.execute("INSERT INTO Users ('Name', 'Password') VALUES (?, ?)", username, password_digest)
     user_id = db.execute("Select User_Id FROM Users WHERE Name=?", username).last.last
-    session[:user_id] = user_id
+    session[:user_id] = Save_user(user_id, @admin)
     redirect('/turtle/')
 end
 
@@ -112,7 +117,7 @@ post('/login') do
     user_id = result["User_Id"].to_i
     password_digest = result["Password"]
     if BCrypt::Password.new(password_digest) == password
-        session[:user_id] = user_id
+        session[:user_id] = Save_user(user_id, @admin)
         redirect('/turtle/')
     else
         "FEL LÖSEN!!!!"
@@ -132,10 +137,32 @@ end
 post('/post/new') do
     content = params[:Content]
     db = SQLite3::Database.new("db/db.db")
-    if session[:user_id] == nil
+    if session[:user_id].empty?
         return "Logga in"
     else   
-        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id])  
+        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id].last)  
     end
     redirect('/posts/')
+end
+
+get('/posts/:post_id/edit') do
+    post_id = params[:post_id].to_i
+    db = Connect_to_db("db/db.db")
+    result = db.execute("SELECT * FROM POST WHERE Post_ID = ?", post_id).last
+    slim(:"post/edit", locals:{post:result})
+end
+
+post('/posts/:post_id/update') do
+    post_id = params[:post_id].to_i
+    content = params[:Content]
+    db = Connect_to_db("db/db.db")
+    db.execute("UPDATE Post SET Content = ? WHERE Post_id = ?", content, post_id)
+    redirect("/posts/")
+end
+
+post('/posts/:post_id/remove') do
+    post_id = params[:post_id].to_i
+    db = Connect_to_db("db/db.db")
+    db.execute("DELETE FROM Post WHERE Post_Id = ?", post_id)
+    redirect("/posts/")
 end
