@@ -12,12 +12,8 @@ enable :sessions
 # @user = Select_current_user(session[:user_id])
 
 before do
-    if session[:user_id] == nil
-        session[:user_id] = []
-    end
-    @admin = [0, 1]
-    @user = Select_current_user(session[:user_id].last)
-    if session[:user_id].empty? && ((request.path_info == '/turtle/new') || (request.path_info == '/post/new'))
+    @user = Select_current_user(session[:user_id])
+    if session[:user_id] == nil && ((request.path_info == '/turtle/new') || (request.path_info == '/post/new'))
         flash[:error] = "Måste vara inloggad för att skapa ett inlägg"
         redirect('/turtle/')
     end
@@ -26,7 +22,7 @@ end
 before('/turtle/:description_id/edit') do
     db = Connect_to_db("db/db.db")
     id = db.execute("SELECT User_Id FROM Describing_features WHERE Description_Id = ?", params[:description_id].to_i).last
-    if session[:user_id].include?(id["User_Id"])
+    if session[:user_id] == id || Check_admin(session[:user_id])
         redirect('/turtle/#{id}/edit')
     else
         flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
@@ -50,7 +46,7 @@ get('/turtle/new') do
     slim(:"turtle/new", locals:{tags:tags})
 end
 
-post('/turtle/new') do
+post('/turtle') do
     Insert_new_Turtle(params[:turtle_name], params[:turtle_size].to_i, params[:turtle_species], params[:turtle_weight].to_i, params[:turtle_notes], session[:user_id].last)
     turtle_id = Select_turtle_id()
     Insert_turtle_tags(params[:turtle_tags].to_a, turtle_id["Description_Id"])
@@ -98,7 +94,7 @@ post('/register') do
     db = SQLite3::Database.new("db/db.db")
     db.execute("INSERT INTO Users ('Name', 'Password') VALUES (?, ?)", username, password_digest)
     user_id = db.execute("Select User_Id FROM Users WHERE Name=?", username).last.last
-    session[:user_id] = Save_user(user_id, @admin)
+    session[:user_id] = user_id
     redirect('/turtle/')
 end
 
@@ -117,7 +113,7 @@ post('/login') do
     user_id = result["User_Id"].to_i
     password_digest = result["Password"]
     if BCrypt::Password.new(password_digest) == password
-        session[:user_id] = Save_user(user_id, @admin)
+        session[:user_id] = user_id
         redirect('/turtle/')
     else
         "FEL LÖSEN!!!!"
@@ -134,7 +130,7 @@ get('/post/new') do
     slim(:"post/new")
 end
 
-post('/post/new') do
+post('/post') do
     content = params[:Content]
     db = SQLite3::Database.new("db/db.db")
     if session[:user_id].empty?

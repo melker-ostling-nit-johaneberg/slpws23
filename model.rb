@@ -33,8 +33,14 @@ helpers do
         db.execute("DELETE FROM #{tabel} WHERE Description_Id = ?", description_id)
     end
 
-    def Save_user(user_id, admin)
-        return admin << user_id
+    def Check_admin(current_user)
+        db = Connect_to_db("db/db.db")
+        a = db.execute("SELECT Admin FROM Users WHERE User_Id = ?", current_user).last
+        if a == nil
+            return false
+        else
+            return a["Admin"] == 1
+        end
     end
     def Select_all_Tags
         db = Connect_to_db("db/db.db")

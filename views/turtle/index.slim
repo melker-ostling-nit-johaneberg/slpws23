@@ -11,7 +11,7 @@
         -  @Tag.select {|tags| tags["Description_Id"] == turtle["Description_Id"]}.each do |tag|
             div 
                 p #{tag["Tag"]}
-        - if session[:user_id].include?(turtle["User_Id"])
+        - if session[:user_id] == turtle["User_Id"] || Check_admin(session[:user_id])
             form action='/turtle/#{turtle["Description_Id"]}/remove' method="post" 
                 input type="submit"  value="Delete"/
             form action="/turtle/#{turtle["Description_Id"]}/edit" method="get" 
