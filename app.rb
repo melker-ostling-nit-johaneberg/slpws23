@@ -7,9 +7,7 @@ require 'sinatra/flash'
 require_relative './model.rb'
 enable :sessions
 
-# current user
-# @user = db.execute("SELECT * FROM Users WHERE User_Id=?", session[:user_id])
-# @user = Select_current_user(session[:user_id])
+
 
 before do
     @user = Select_current_user(session[:user_id])
@@ -19,25 +17,14 @@ before do
     end
 end
 
-before('/turtle/:description_id/edit') do
-    db = Connect_to_db("db/db.db")
-    id = db.execute("SELECT User_Id FROM Describing_features WHERE Description_Id = ?", params[:description_id].to_i).last
-    if session[:user_id] == id || Check_admin(session[:user_id])
-        redirect('/turtle/#{id}/edit')
-    else
-        flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
-        redirect('/turtle/') 
-    end
-end
 
 get('/') do
     redirect('/turtle/')
 end
 
 get('/turtle/') do
-    db = Connect_to_db("db/db.db")
-    result = db.execute("SELECT * FROM Describing_features INNER JOIN Users ON Describing_features.User_Id=Users.User_Id")
-    @Tag = db.execute("SELECT * FROM Rel_Description INNER JOIN Describing_tags ON Rel_Description.Tag_Id = Describing_tags.Tag_Id")
+    result = Select_all_features_user()
+    @Tag = Select_all_Tags_Descriptions()
     slim(:"turtle/index", locals:{turtels:result})
 end
 
@@ -47,7 +34,15 @@ get('/turtle/new') do
 end
 
 post('/turtle') do
-    Insert_new_Turtle(params[:turtle_name], params[:turtle_size].to_i, params[:turtle_species], params[:turtle_weight].to_i, params[:turtle_notes], session[:user_id].last)
+    if params[:turtle_name].length == 0
+        flash[:error] = "Skölpaddan har väll ett namn i alla fall"
+        redirect('/turtle/new') 
+    end
+    if params[:turtle_size] == "" || params[:turtle_weight] == ""
+        flash[:error] = "Är du säker på att sköldpaddan finns? Skriv in en vikt och/eller längd."
+        redirect('/turtle/new') 
+    end
+    Insert_new_Turtle(params[:turtle_name], params[:turtle_size].to_i, params[:turtle_species], params[:turtle_weight].to_i, params[:turtle_notes], session[:user_id])
     turtle_id = Select_turtle_id()
     Insert_turtle_tags(params[:turtle_tags].to_a, turtle_id["Description_Id"])
     redirect('/turtle/')
@@ -55,11 +50,15 @@ end
 
 get('/turtle/:description_id/edit') do
     id = params[:description_id].to_i
-    db = Connect_to_db("db/db.db")
-    result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id).last
+    post_user_id = Select_user_id_from_feature_id(id)
+    if post_user_id["User_Id"] != session[:user_id] && Check_admin(session[:user_id]) == false
+        flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
+        redirect('/turtle/') 
+    end
+    result = Select_all_features_id(id)
     tag = Select_all_Tags()
-    tag_in_use = db.execute("SELECT Tag_Id FROM Rel_Description WHERE Description_Id=?", id).to_a.flat_map(&:values)
-    slim(:"Turtle/edit", locals:{user_content:result, tags:tag, tag_in_use:tag_in_use})
+    tag_in_use = Select_tag_in_use(id)
+    slim(:"turtle/edit", locals:{user_content:result, tags:tag, tag_in_use:tag_in_use})
 end
 
 post('/turtle/:description_id/update') do
@@ -70,17 +69,16 @@ post('/turtle/:description_id/update') do
     turtle_weight = params[:turtle_weight].to_i
     turtle_notes = params[:turtle_notes]
     turtle_tags = params[:turtle_tags].to_a
-    db = Connect_to_db("db/db.db")
-    Delete_x("Rel_Description", id)
-    db.execute("UPDATE Describing_features SET Turt_Name = ?, Size = ?, Species = ?, Weight = ?, Special_notes = ? WHERE Description_Id = ?", turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, id)
+    Delete_x_description_id("Rel_Description", id)
+    Update_features(turtle_name, turtle_size, turtle_species, turtle_weight, turtle_notes, id)
     Insert_turtle_tags(turtle_tags, id)
     redirect('/turtle/')
 end
 
-post('/turtle/:description_id/remove') do
+post('/turtle/:description_id/delete') do
     id = params[:description_id].to_i
-    Delete_x("Describing_features", id)
-    Delete_x("Rel_Description", id)
+    Delete_x_description_id("Describing_features", id)
+    Delete_x_description_id("Rel_Description", id)
     redirect("/turtle/")
 end
 get('/register') do
@@ -90,11 +88,12 @@ end
 post('/register') do
     username = params[:username]
     password = params[:password]
-    password_digest = BCrypt::Password.create(password)
-    db = SQLite3::Database.new("db/db.db")
-    db.execute("INSERT INTO Users ('Name', 'Password') VALUES (?, ?)", username, password_digest)
-    user_id = db.execute("Select User_Id FROM Users WHERE Name=?", username).last.last
-    session[:user_id] = user_id
+    if Check_user(username)
+        flash[:error] = "Användarnamn annvänds redan, va lite unik"
+        redirect('/register') 
+    end
+    Register_user(username, password)
+    session[:user_id] = Select_user_where_name(username)
     redirect('/turtle/')
 end
 
@@ -105,24 +104,22 @@ end
 post('/login') do
     username = params[:username]
     password = params[:password]
-    db = Connect_to_db("db/db.db")
-    result = db.execute("SELECT User_Id, Password from Users WHERE Name=?", username).first
+    result = Select_user_password_where_name(username)
     if result == nil
-        return "FEL ANVÄNDARNAMN"
+        flash[:error] = "Fel Användarnamn"
+        redirect('/login') 
     end
-    user_id = result["User_Id"].to_i
-    password_digest = result["Password"]
-    if BCrypt::Password.new(password_digest) == password
-        session[:user_id] = user_id
+    if Check_password(result["Password"], password)
+        session[:user_id] = result["User_Id"].to_i
         redirect('/turtle/')
     else
-        "FEL LÖSEN!!!!"
+        flash[:error] = "Fel Lösenord"
+        redirect('/login') 
     end
 end
 
 get('/posts/') do
-    db = Connect_to_db("db/db.db")
-    result = db.execute("SELECT * FROM Post INNER JOIN Users ON Post.User_Id = Users.User_Id")
+    result = Select_all_post_users()
     slim(:"post/index", locals:{content:result})
 end
 
@@ -132,33 +129,74 @@ end
 
 post('/post') do
     content = params[:Content]
-    db = SQLite3::Database.new("db/db.db")
-    if session[:user_id].empty?
-        return "Logga in"
-    else   
-        db.execute("INSERT INTO Post (Content, User_id) VALUES (?, ?)", content, session[:user_id].last)  
+    if content.length == 0
+        flash[:error] = "Du måste skriva nåt"
+        redirect('/post/new') 
     end
+    Insert_post(content, session[:user_id])
     redirect('/posts/')
 end
 
 get('/posts/:post_id/edit') do
-    post_id = params[:post_id].to_i
-    db = Connect_to_db("db/db.db")
-    result = db.execute("SELECT * FROM POST WHERE Post_ID = ?", post_id).last
+    id = params[:post_id].to_i
+    result = Select_all_post_where_id(id)
     slim(:"post/edit", locals:{post:result})
 end
 
 post('/posts/:post_id/update') do
-    post_id = params[:post_id].to_i
+    id = params[:post_id].to_i
     content = params[:Content]
-    db = Connect_to_db("db/db.db")
-    db.execute("UPDATE Post SET Content = ? WHERE Post_id = ?", content, post_id)
+    Update_post(content, id)
     redirect("/posts/")
 end
 
-post('/posts/:post_id/remove') do
-    post_id = params[:post_id].to_i
-    db = Connect_to_db("db/db.db")
-    db.execute("DELETE FROM Post WHERE Post_Id = ?", post_id)
+post('/posts/:post_id/delete') do
+    id = params[:post_id].to_i
+    Delete_post_where_id(id)
     redirect("/posts/")
+end
+
+get('/admin/tags/') do
+    if Check_admin(session[:user_id]) == false
+        flash[:error] = "Du har inte tillgång till denna funktionaliteten"
+        redirect('/turtle/') 
+    end
+    result = Select_all_Tags
+    slim(:"admin/tag/index", locals:{content:result})
+end
+
+get('/admin/tags/new') do
+    if Check_admin(session[:user_id]) == false
+        flash[:error] = "Du har inte tillgång till denna funktionaliteten"
+        redirect('/turtle/') 
+    end
+    slim(:"admin/tag/new")
+end
+
+post('/admin/tags') do
+    content = params[:New_tag]
+    Insert_tags(content)
+    redirect('/admin/tags/')
+end
+
+get('/admin/tags/:tag_id/edit') do
+    id = params[:tag_id].to_i
+    if Check_admin(session[:user_id]) == false
+        flash[:error] = "Du har inte tillgång till denna funktionaliteten"
+        redirect('/turtle/') 
+    end
+    result = Select_all_tags_where_id(id)
+    slim(:"admin/tag/edit", locals:{edit_tag:result})
+end
+
+post('/admin/tags/:tag_id/update') do
+    Update_tags(params[:new_tag], params[:tag_id].to_i)
+    redirect('/admin/tags/')
+end
+
+post('/admin/tags/:tag_id/delete') do
+    tag_id = params[:tag_id].to_i
+    Delete_x_tag_id("Describing_tags", tag_id)
+    Delete_x_tag_id("Rel_Description", tag_id)
+    redirect("admin/tags/")
 end

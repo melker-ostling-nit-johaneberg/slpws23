@@ -13,6 +13,8 @@ html lang="en"
             a href="/turtle/new" New Turtle 
             a href="/posts/" Posts 
             a href="/post/new" Creat Post 
+            -if Check_admin(session[:user_id])
+                a href="/admin/tags/" View Tag
             - if @user.empty?
                 h1 Du är inte inloggad 
             - else 

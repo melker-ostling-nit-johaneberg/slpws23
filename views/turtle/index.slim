@@ -12,7 +12,7 @@
             div 
                 p #{tag["Tag"]}
         - if session[:user_id] == turtle["User_Id"] || Check_admin(session[:user_id])
-            form action='/turtle/#{turtle["Description_Id"]}/remove' method="post" 
+            form action='/turtle/#{turtle["Description_Id"]}/delete' method="post" 
                 input type="submit"  value="Delete"/
             form action="/turtle/#{turtle["Description_Id"]}/edit" method="get" 
                 input type="submit" value="Edit"/

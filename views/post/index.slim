@@ -5,7 +5,7 @@ h2 User posts
         h3 #{cont["Content"]}
         p Användare: #{cont["Name"]}
         - if cont["User_Id"] == session[:user_id] || Check_admin(session[:user_id])
-            form action='/posts/#{cont["Post_Id"]}/remove' method="post" 
+            form action='/posts/#{cont["Post_Id"]}/delete' method="post" 
                 input type="submit"  value="Delete"/
             form action="/posts/#{cont["Post_Id"]}/edit" method="get" 
                 input type="submit" value="Edit"/

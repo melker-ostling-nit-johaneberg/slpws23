@@ -1,0 +1,15 @@
+h2 Tags
+
+- content.each do |cont|
+    div 
+        h3 Tag: #{cont["Tag"]}
+        p Id: #{cont["Tag_Id"]}
+        form action='/admin/tags/#{cont["Tag_Id"]}/delete' method="post" 
+            input type="submit"  value="Delete"/
+        form action='/admin/tags/#{cont["Tag_Id"]}/edit' method="get" 
+            input type="submit" value="Edit"/
+
+p ---------------------------------------------------------------------            
+
+form action="/admin/tags/new" method="get" 
+    input type="submit" value="Creat new tag"/
