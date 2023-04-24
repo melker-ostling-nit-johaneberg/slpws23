@@ -50,12 +50,11 @@ end
 
 get('/turtle/:description_id/edit') do
     id = params[:description_id].to_i
-    post_user_id = Select_user_id_from_feature_id(id)
-    if post_user_id["User_Id"] != session[:user_id] && Check_admin(session[:user_id]) == false
+    result = Select_all_features_id(id)
+    if result["User_Id"] != session[:user_id] && !Check_admin(session[:user_id])
         flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
         redirect('/turtle/') 
     end
-    result = Select_all_features_id(id)
     tag = Select_all_Tags()
     tag_in_use = Select_tag_in_use(id)
     slim(:"turtle/edit", locals:{user_content:result, tags:tag, tag_in_use:tag_in_use})
@@ -77,6 +76,11 @@ end
 
 post('/turtle/:description_id/delete') do
     id = params[:description_id].to_i
+    result = Select_all_features_id(id)
+    if result["User_Id"] != session[:user_id] && !Check_admin(session[:user_id])
+        flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
+        redirect('/turtle/') 
+    end
     Delete_x_description_id("Describing_features", id)
     Delete_x_description_id("Rel_Description", id)
     redirect("/turtle/")
@@ -93,7 +97,7 @@ post('/register') do
         redirect('/register') 
     end
     Register_user(username, password)
-    session[:user_id] = Select_user_where_name(username)
+    session[:user_id] = Select_user_password_where_name(username)["User_Id"]
     redirect('/turtle/')
 end
 
@@ -101,19 +105,28 @@ get('/login')do
     slim(:login)
 end
 
+login_attempts = {}
 post('/login') do
     username = params[:username]
     password = params[:password]
     result = Select_user_password_where_name(username)
-    if result == nil
-        flash[:error] = "Fel Användarnamn"
+
+    if login_attempts[request.ip] != nil && (Time.now.to_i - login_attempts[request.ip]) < 60
+        flash[:error] = "Du har försökt för många gånger"
         redirect('/login') 
-    end
-    if Check_password(result["Password"], password)
-        session[:user_id] = result["User_Id"].to_i
-        redirect('/turtle/')
     else
-        flash[:error] = "Fel Lösenord"
+        if result != nil
+            if Check_password(result["Password"], password)
+                session[:user_id] = result["User_Id"].to_i
+                redirect('/turtle/')
+            end
+        end
+        login_attempts[request.ip] = Time.now.to_i
+        if result == nil
+            flash[:error] = "Fel Användarnamn"
+        else
+            flash[:error] = "Fel Lösenord"
+        end
         redirect('/login') 
     end
 end
@@ -140,6 +153,10 @@ end
 get('/posts/:post_id/edit') do
     id = params[:post_id].to_i
     result = Select_all_post_where_id(id)
+    if result["User_Id"] != session[:user_id] && !Check_admin(session[:user_id])
+        flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
+        redirect('/turtle/') 
+    end
     slim(:"post/edit", locals:{post:result})
 end
 
@@ -152,6 +169,11 @@ end
 
 post('/posts/:post_id/delete') do
     id = params[:post_id].to_i
+    result = Select_all_post_where_id(id)
+    if result["User_Id"] != session[:user_id] && !Check_admin(session[:user_id])
+        flash[:error] = "Du är inte inloggad med rätt konto för att ändra detta inlägg"
+        redirect('/turtle/') 
+    end
     Delete_post_where_id(id)
     redirect("/posts/")
 end
@@ -196,6 +218,10 @@ end
 
 post('/admin/tags/:tag_id/delete') do
     tag_id = params[:tag_id].to_i
+    if Check_admin(session[:user_id]) == false
+        flash[:error] = "Du har inte tillgång till denna funktionaliteten"
+        redirect('/turtle/') 
+    end
     Delete_x_tag_id("Describing_tags", tag_id)
     Delete_x_tag_id("Rel_Description", tag_id)
     redirect("admin/tags/")

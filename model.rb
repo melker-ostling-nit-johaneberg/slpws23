@@ -33,12 +33,6 @@ helpers do
         return result
     end
 
-    def Select_user_id_from_feature_id(id)
-        db = Connect_to_db("db/db.db")
-        result = db.execute("SELECT User_Id FROM Describing_features WHERE Description_Id = ?", id).last
-        return result
-    end
-
     def Select_all_features_id(id)
         db = Connect_to_db("db/db.db")
         result = db.execute("SELECT * from Describing_features WHERE Description_Id=?", id).last
@@ -57,12 +51,6 @@ helpers do
         return result
     end
 
-    def Select_user_where_name(username)
-        db = Connect_to_db("db/db.db")
-        result = db.execute("Select User_Id FROM Users WHERE Name=?", username).last
-        return result["User_Id"]
-    end
-
     def Select_all_post_users
         db = Connect_to_db("db/db.db")
         result = db.execute("SELECT * FROM Post INNER JOIN Users ON Post.User_Id = Users.User_Id")
@@ -71,7 +59,7 @@ helpers do
 
     def Select_all_post_where_id(id)
         db = Connect_to_db("db/db.db")
-        result = db.execute("SELECT * FROM POST WHERE Post_ID = ?", id).last
+        result = db.execute("SELECT * FROM POST WHERE Post_Id = ?", id).last
         return result
     end
 
@@ -186,7 +174,7 @@ helpers do
     def Check_user(username)
         db = Connect_to_db("db/db.db")
         result = db.execute("SELECT Name FROM Users WHERE Name = ?", username)
-        return result != nil
+        return !result.empty?
     end
 
 
